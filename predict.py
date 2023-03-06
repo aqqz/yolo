@@ -181,6 +181,23 @@ class YOLO_Predictor():
             ax.text(xmin-2, ymin-2, s=self.class_list[cls] + ': ' + str(score)[:5], color=self.color_list[cls])
         
         plt.show()
+        
+    
+       
+    def save_samples(self, im_count):
+        out_dir = 'samples/'
+
+        if os.path.exists(out_dir) == False:
+            os.mkdir(out_dir)
+            
+        cnt = 0
+        for image, label in val_ds:
+            im_name = str(cnt) + '.pgm'
+            from torchvision.utils import save_image
+            save_image(image, open(os.path.join(out_dir, im_name), "wb"))
+            cnt += 1
+            if cnt >= im_count:
+                break
     
     
     
@@ -191,18 +208,19 @@ class YOLO_Predictor():
 if __name__ == '__main__':
     
     model = YOLO_Model(S=7,B=2,C=20, use_voc=True)
-    model.load_state_dict(torch.load('model.pt', map_location='cpu'))
+    # model.load_state_dict(torch.load('model.pt', map_location='cpu'))
     
     transform = T.Compose([
         T.ToTensor(),
         T.Resize([224, 224]),
     ])
     
-    val_ds = VOC_Dataset(image_root="/home/taozhi/datasets/VOC0712/JPEGImages/",
-                        label_root="/home/taozhi/datasets/VOC0712/Annotations/",
-                        txt_file="/home/taozhi/datasets/VOC0712/07test.txt",
+    val_ds = MyDataset(image_root="images",
+                        label_root="labels",
+                        txt_file="val.txt",
                         transform=transform)
     
     
     predictor = YOLO_Predictor(model, val_ds, score_threshold=0.5, iou_threshold=0.5, device='cpu')
-    predictor.predict(5)
+    # predictor.predict(5)
+    predictor.save_samples(1)
