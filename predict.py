@@ -198,6 +198,11 @@ class YOLO_Predictor():
             cnt += 1
             if cnt >= im_count:
                 break
+            
+            
+    def onnx_export(self):
+        dummy_input = torch.randn(1, 1, 224, 224)
+        onnx_model = torch.onnx.export(self.model, dummy_input, 'model.onnx')
     
     
     
@@ -224,3 +229,4 @@ if __name__ == '__main__':
     predictor = YOLO_Predictor(model, val_ds, score_threshold=0.5, iou_threshold=0.5, device='cpu')
     # predictor.predict(5)
     predictor.save_samples(1)
+    predictor.onnx_export()
