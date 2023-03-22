@@ -12,7 +12,7 @@ class YOLO_Model(nn.Module):
         self.use_voc = use_voc
         
         self.gray2rgb = nn.Conv2d(1, 3, 1, 1)
-        self.features = mobilenet_v2(pretrained=True).features
+        self.features = mobilenet_v2(pretrained=True).features[:-1]
         # self.fc = nn.Sequential(
         #     nn.Flatten(),
         #     nn.Linear(7*7*512, 4096),
@@ -22,7 +22,7 @@ class YOLO_Model(nn.Module):
         #     nn.Sigmoid()
         # )
         self.fc = nn.Sequential(
-            nn.Conv2d(1280, 5*self.B+self.C, 1, 1),
+            nn.Conv2d(320, 5*self.B+self.C, 1, 1),
             nn.Sigmoid(),
         )
         
