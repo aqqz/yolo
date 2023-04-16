@@ -20,7 +20,27 @@ class YOLO_Loss(nn.Module):
         self.response_mask = y_true[..., 0] #(?, 7, 7)
         gt_box = y_true[..., 1:5] #(?, 7, 7, 4)
         gt_cls = y_true[..., 5:] #(?, 7, 7, 20)
+        
+        # pred_con = y_pred[..., 0]
+        # pred_box = y_pred[..., 1:5]
+        # pred_cls = y_pred[..., 5:]
 
+        # gt_box_trans = self.box_trans(gt_box)
+        # pred_box_trans = self.box_trans(pred_box)
+        # box_iou = self.iou(gt_box_trans, pred_box_trans)
+        
+        # xy_loss = self.response_mask * torch.sum(torch.square(pred_box[..., 0:2] - gt_box[..., 0:2]), dim=3)
+        # xy_loss = torch.sum(xy_loss)
+        
+        # wh_loss = self.response_mask * torch.sum(torch.square(torch.sqrt(pred_box[..., 2:4] + 1e-5) - torch.sqrt(gt_box[..., 2:4] + 1e-5)), dim=3)
+        # wh_loss = torch.sum(wh_loss)
+        
+        # ob_loss = self.response_mask * torch.square(pred_con - box_iou)
+        # ob_loss = torch.sum(ob_loss)
+        
+        # no_loss = (1 - self.response_mask) * torch.square(pred_con - 0)
+        # no_loss = torch.sum(no_loss)
+        
         pred_con1 = y_pred[..., 0]
         pred_box1 = y_pred[..., 1:5]
         pred_con2 = y_pred[..., 5]
@@ -63,7 +83,7 @@ class YOLO_Loss(nn.Module):
             self.l_noobj * no_loss + \
             cls_loss
         
-        return total_loss / y_pred.shape[0]
+        return [total_loss/y_pred.shape[0], xy_loss/y_pred.shape[0], wh_loss/y_pred.shape[0], ob_loss/y_pred.shape[0], no_loss/y_pred.shape[0], cls_loss/y_pred.shape[0]]
         
         
         
@@ -152,7 +172,7 @@ if __name__ == '__main__':
     
     from dataset import MyDataset
     from voc_dataset import VOC_Dataset
-    from model import YOLO_Model
+    from model import YOLO_Model, YOLO_Tiny
     import torchvision.transforms as T
     
     transform = T.Compose([
@@ -168,10 +188,11 @@ if __name__ == '__main__':
     image, label = image.unsqueeze(0), label.unsqueeze(0)
     print(image.shape, label.shape)
     
-    model = YOLO_Model(S=7,B=2,C=20)
+    model = YOLO_Model(S=7,B=2,C=20,use_voc=True)
+    # model = YOLO_Tiny(S=7,B=1,C=20)
     output = model(image)
     
-    loss_fn = YOLO_Loss(S=7,B=2,C=20,l_coord=5,l_noobj=0.5,input_size=224, device='cpu')
+    loss_fn = YOLO_Loss(S=7,B=2,C=20,l_coord=5,l_noobj=1,input_size=448, device='cpu')
     
     loss = loss_fn(output, label)
     print(loss)

@@ -47,7 +47,7 @@ class VOC_Dataset(Dataset):
     def __getitem__(self, index):
         image_name = self.filelist[index] + '.jpg'
         image_path = os.path.join(self.image_root, image_name)
-        pil_image = Image.open(image_path).convert('L')
+        pil_image = Image.open(image_path)
         image_array = np.array(pil_image)
         
         xml_name = self.filelist[index] + '.xml'
@@ -194,7 +194,6 @@ class VOC_Dataset(Dataset):
         return decode_mark
     
     
-    
     def random_contrast(self, image):
         if random.random() < 0.5:
             alpha = random.uniform(0.5, 1.5)
@@ -216,7 +215,7 @@ class VOC_Dataset(Dataset):
             im = cv2.blur(image, (5, 5))
             return im
         return image
-    
+            
     
     def random_flip(self, image, mark):
         if random.random() < 0.5:    
@@ -250,48 +249,65 @@ class VOC_Dataset(Dataset):
     
     
     def random_shift(self, image, mark):
-        
-        h, w, ob_infos = mark[0], mark[1], mark[2]
+        if random.random() < 0.5:
+            
+            h, w, ob_infos = mark[0], mark[1], mark[2]
 
-        shift_x = random.uniform(-w*0.2, w*0.2)
-        shift_y = random.uniform(-h*0.2, h*0.2)
-    
-        if len(image.shape) == 3:
-            im = np.zeros((h, w, 3), dtype=np.uint8)
-        else:
-            im = np.zeros((h, w, 1), dtype=np.uint8)
-            image = np.expand_dims(image, axis=2)
-            
+            shift_x = random.uniform(-w*0.2, w*0.2)
+            shift_y = random.uniform(-h*0.2, h*0.2)
         
-        im[:, :, :] = 128
-        
-        if shift_x>=0 and shift_y>=0:
-            im[int(shift_y):, int(shift_x):, :] = image[:h-int(shift_y), :w-int(shift_x), :]
-        elif shift_x>=0 and shift_y<0:
-            im[:h+int(shift_y), int(shift_x):, :] = image[-int(shift_y):, :w-int(shift_x), :]
-        elif shift_x<0 and shift_y>=0:
-            im[int(shift_y):, :w+int(shift_x), :] = image[:h-int(shift_y), -int(shift_x):, :]
-        elif shift_x<0 and shift_y<0:
-            im[:h+int(shift_y), :w+int(shift_x), :] = image[-int(shift_y):, -int(shift_x):, :]
-            
-        for ob in ob_infos:
-            xmin, ymin, xmax, ymax = ob[1], ob[2], ob[3], ob[4]
-            xc = (xmin + xmax) / 2 + shift_x
-            yc = (ymin + ymax) / 2 + shift_y
-            
-            xc_in = (xc > 0) & (xc < w)
-            yc_in = (yc > 0) & (yc < h)
-            
-            box_in = xc_in & yc_in
-            if box_in == True:
-                ob[1] = xmin + shift_x
-                ob[2] = ymin + shift_y
-                ob[3] = xmax + shift_x
-                ob[4] = ymax + shift_y
+            if len(image.shape) == 3:
+                im = np.zeros((h, w, 3), dtype=np.uint8)
             else:
-                ob = None
+                im = np.zeros((h, w, 1), dtype=np.uint8)
+                image = np.expand_dims(image, axis=2)
                 
-        return im, mark
+            
+            im[:, :, :] = 128
+            
+            if shift_x>=0 and shift_y>=0:
+                im[int(shift_y):, int(shift_x):, :] = image[:h-int(shift_y), :w-int(shift_x), :]
+            elif shift_x>=0 and shift_y<0:
+                im[:h+int(shift_y), int(shift_x):, :] = image[-int(shift_y):, :w-int(shift_x), :]
+            elif shift_x<0 and shift_y>=0:
+                im[int(shift_y):, :w+int(shift_x), :] = image[:h-int(shift_y), -int(shift_x):, :]
+            elif shift_x<0 and shift_y<0:
+                im[:h+int(shift_y), :w+int(shift_x), :] = image[-int(shift_y):, -int(shift_x):, :]
+                
+            for ob in ob_infos:
+                xmin, ymin, xmax, ymax = ob[1], ob[2], ob[3], ob[4]
+                xc = (xmin + xmax) / 2 + shift_x
+                yc = (ymin + ymax) / 2 + shift_y
+                
+                xc_in = (xc > 0) & (xc < w)
+                yc_in = (yc > 0) & (yc < h)
+                
+                box_in = xc_in & yc_in
+                if box_in == True:
+                    ob[1] = xmin + shift_x
+                    ob[2] = ymin + shift_y
+                    ob[3] = xmax + shift_x
+                    ob[4] = ymax + shift_y
+                else:
+                    ob = None
+            return im, mark
+        return image, mark
+    
+    
+    
+    def random_crop(self, image, mark):
+        if random.random() < 0.5:
+            h, w, ob_infos = mark[0], mark[1], mark[2]
+            crop_h = random.uniform(0.6*h, h)
+            crop_w = random.uniform(0.6*w, w)
+            crop_x = random.uniform(0, w-crop_w) # 裁剪后区域内任意一点横坐标
+            crop_y = random.uniform(0, h-crop_h) # 裁剪后区域内任意一点纵坐标
+            crop_x, crop_y, crop_w, crop_h = int(crop_x), int(crop_y), int(crop_w), int(crop_h)
+            for ob in ob_infos:
+                xmin, ymin, xmax, ymax = ob[1], ob[2], ob[3], ob[4]
+                
+            
+        pass
             
             
             
@@ -330,6 +346,6 @@ if __name__ == '__main__':
     
     print(len(train_ds), len(val_ds))
     
-    image, label = train_ds.__getitem__(0)
+    image, label = train_ds.__getitem__(1)
     print(image.shape, label.shape)
     

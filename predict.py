@@ -33,7 +33,7 @@ class YOLO_Predictor():
         else:
             image_name = self.test_ds.filelist[index] + '.jpg'
         image_path = os.path.join(self.test_ds.image_root, image_name)
-        pil_image = Image.open(image_path).convert('L')
+        pil_image = Image.open(image_path)
         image_array = np.array(pil_image)
         height, width = image_array.shape[0], image_array.shape[1]
         
@@ -43,7 +43,7 @@ class YOLO_Predictor():
         
         #use other image
         if path != None:
-            pil_image = Image.open(path).convert('L')
+            pil_image = Image.open(path)
             image_array = np.array(pil_image)
             height, width = image_array.shape[0], image_array.shape[1]
             
@@ -53,10 +53,10 @@ class YOLO_Predictor():
         input = image.unsqueeze(0)
         output = self.model(input)
         ob_infos = self.post_progress(output[0], height, width)
-        print(ob_infos)
+        # print(ob_infos)
         
-        self.draw(image_array, ob_infos)
-        
+        # self.draw(image_array, ob_infos)
+        return ob_infos
         
         
     
@@ -186,12 +186,12 @@ class YOLO_Predictor():
         if type(self.test_ds) == MyDataset:
             ax.imshow(image_array, cmap='gray')
         else:
-            ax.imshow(image_array, cmap="gray")
+            ax.imshow(image_array)
         
         for ob in ob_infos:
             cls, score, xmin, ymin, xmax, ymax = ob[0], ob[1], int(ob[2]), int(ob[3]), int(ob[4]), int(ob[5])
             
-            rect = mpatches.Rectangle((xmin, ymin), xmax-xmin, ymax-ymin, fill=0, color=self.color_list[cls])
+            rect = mpatches.Rectangle((xmin, ymin), xmax-xmin, ymax-ymin, fill=0, color=self.color_list[cls], linewidth=2.5)
             ax.add_patch(rect)
             ax.text(xmin-2, ymin-2, s=self.class_list[cls] + ': ' + str(score)[:4], color=self.color_list[cls])
         
@@ -217,14 +217,36 @@ class YOLO_Predictor():
     def onnx_export(self):
         dummy_input = torch.randn(1, 1, 224, 224)
         onnx_model = torch.onnx.export(self.model, dummy_input, 'model.onnx')
+        
+        
+        
+        
+    def save_results(self, image_root, results_root='voc_results'):
+        
+        if os.path.exists(results_root) == False:
+            os.mkdir(results_root)
+            
+        fds = [ open(os.path.join(results_root, cls+'.txt'), mode="w+") for cls in self.class_list]
+        
+        for image in os.listdir(image_root):
+            image_path = os.path.join(image_root, image)
+            print(image_path)
+            
+            bounding_boxes = self.predict(0, path=image_path)
+            
+            for bounding_box in bounding_boxes:
+                fds[bounding_box[0]].writelines(f"{image[:-4]} {bounding_box[1]:.3f} {bounding_box[2]:.1f} {bounding_box[3]:.1f} {bounding_box[4]:.1f} {bounding_box[5]:.1f}\n")
+            
+            
+        print('finished!')
     
     
 
 
 if __name__ == '__main__':
     
-    model = YOLO_Model(S=7,B=2,C=20)
-    model.load_state_dict(torch.load('model.pt', map_location='cpu'))
+    model = YOLO_Model(S=7,B=2,C=20,use_voc=True)
+    model.load_state_dict(torch.load('voc_b32_f320_ori.pt', map_location='cpu'))
     
     transform = T.Compose([
         T.ToTensor(),
@@ -242,7 +264,11 @@ if __name__ == '__main__':
     #                    transform=transform)
     
     
-    predictor = YOLO_Predictor(model, val_ds, score_threshold=0.2, iou_threshold=0.5, device='cpu')
-    # predictor.predict(0, path='/home/taozhi/projects/yolo/images/img (896).jpeg')
+    predictor = YOLO_Predictor(model, val_ds, score_threshold=0.05, iou_threshold=0.5, device='cpu')
+    
+    predictor.save_results(image_root="/home/taozhi/datasets/VOC2007test/VOCdevkit/VOC2007/JPEGImages/",
+                           results_root='voc_b32_f320_ori')
+    
+    # predictor.predict(0)
     # predictor.save_samples(50)
-    predictor.onnx_export()
+    # predictor.onnx_export()
